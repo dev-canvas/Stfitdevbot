@@ -680,7 +680,7 @@ async def send_affirmation():
     try:
         aff = await get_next_affirmation()
         photo_path = await get_affirmation_photo(aff["image_id"])
-	    caption = f"🌚 {aff['text']}\n\n\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
+        caption = f"🌚 {aff['text']}\n\n\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
         
         await bot.send_photo(
             CHANNEL_ID,
