@@ -21,7 +21,6 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 CHANNEL_ID = os.getenv("CHANNEL_ID")
-
 TZ_NAME = "Europe/Moscow"
 tz = pytz.timezone(TZ_NAME)
 
@@ -42,10 +41,12 @@ IMAGES_DIR = DATA_DIR / "images"
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
+
 class AdminStates(StatesGroup):
     waiting_time_change = State()
     waiting_time_add = State()
     waiting_time_delete = State()
+
 
 AFFIRMATIONS = [
     # 1. Присутствие и сила (1-50)
@@ -99,7 +100,7 @@ AFFIRMATIONS = [
     "Моя воля — *бл*д* сталь.",
     "Вы *мусор* под *п*зд*ц* ногами.",
     "Я просыпаюсь *сучк*ой-богиней.",
-
+    
     # 2. Самоуверенность (51-100)
     "Я идеальна, вы *уроды* *п*зды*.",
     "Моя красота *п*зд*ц*.",
@@ -151,7 +152,7 @@ AFFIRMATIONS = [
     "Все лижут мои *сучк*ины следы.",
     "Я *бл*д* королева.",
     "Никто не сломает *п*зду*.",
-
+    
     # 3. Успех и власть (101-150)
     "Деньги текут *п*зд*ц* ко мне.",
     "Я богаче всех *шлюх* *н*х*й.",
@@ -203,7 +204,7 @@ AFFIRMATIONS = [
     "Деньги текут *сучк*иной рекой.",
     "Мой мат — *п*зде*ц* роскошь успеха.",
     "Я просыпаюсь *н*х*й богатой.",
-
+    
     # 4. Любовь и манипуляция (151-200)
     "Мужики лижут *п*зду* мою.",
     "Я рву сердца *бл*д*ски.",
@@ -255,7 +256,7 @@ AFFIRMATIONS = [
     "Ты мой *сучк*ин вечный раб.",
     "Никто не сравнится *н*х*й.",
     "Я просыпаюсь *бл*д* желанной.",
-
+    
     # 5. Тело и красота (201-250)
     "Мое тело *п*зд*ц* идеал.",
     "Я сексуальна *бл*д*ски.",
@@ -307,7 +308,7 @@ AFFIRMATIONS = [
     "Мои формы *бл*д* бомба.",
     "Ты *дохнешь* от вида.",
     "Я просыпаюсь *п*зде*ц* богиней.",
-
+    
     # 6. Деньги и роскошь (251-300)
     "Деньги *п*зд*ц* мои.",
     "Я трачу *бл*д* тоннами.",
@@ -359,7 +360,7 @@ AFFIRMATIONS = [
     "Роскошь *п*зд*ц* моя тень.",
     "Все лижут *п*зды* мои монеты.",
     "Я просыпаюсь *бл*д* в золоте.",
-
+    
     # 7. Месть и враги (301-350)
     "Враги *п*зд*ц* сдохнут.",
     "Я мщу *бл*д* жестко.",
@@ -411,7 +412,7 @@ AFFIRMATIONS = [
     "Мои когти *н*х*й рвут.",
     "Ты *п*зд*ц* уничтожен.",
     "Я просыпаюсь *п*зде*ц* мстя.",
-
+    
     # 8. Капризы и пауза (351-400)
     "Мои капризы *п*зд*ц* святы.",
     "Я отдыхаю *бл*д* как queen.",
@@ -463,7 +464,7 @@ AFFIRMATIONS = [
     "Каприз *сучк*ин трон.",
     "Ты пресмыкаешься *п*зде*ц* зря.",
     "Я просыпаюсь *бл*д* капризной.",
-
+    
     # 9. Самоценность злобная (401-450)
     "Я ценна *п*зд*ц* всем.",
     "Остальные *бл*д* мусор.",
@@ -515,7 +516,7 @@ AFFIRMATIONS = [
     "Все лижут *п*зд*ц* мою суть.",
     "Самоценность моя *сучк*ина месть.",
     "Я просыпаюсь *бл*д* бесценной.",
-
+    
     # 10. Абсолютное превосходство (451-500)
     "Я выше всех *п*зд*ц*.",
     "Остальные *бл*д* черви.",
@@ -571,22 +572,19 @@ AFFIRMATIONS = [
 
 
 async def init_db():
+    """Инициализация базы данных с новой структурой"""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Создаём таблицу аффирмаций с флагом used
         await db.execute("""
             CREATE TABLE IF NOT EXISTS affirmations (
                 id INTEGER PRIMARY KEY,
                 text TEXT NOT NULL,
-                image_id INTEGER DEFAULT 1
+                image_id INTEGER DEFAULT 1,
+                used INTEGER DEFAULT 0
             )
         """)
         
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS used_affirmations (
-                aff_id INTEGER UNIQUE,
-                used_date DATE
-            )
-        """)
-        
+        # Таблица расписания
         await db.execute("""
             CREATE TABLE IF NOT EXISTS schedule (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -594,103 +592,123 @@ async def init_db():
             )
         """)
         
+        # Проверяем, есть ли аффирмации
         cursor = await db.execute("SELECT COUNT(*) FROM affirmations")
         count = (await cursor.fetchone())[0]
         
         if count == 0:
+            # Заполняем базу
             for i, text in enumerate(AFFIRMATIONS, start=1):
                 await db.execute(
-                    "INSERT INTO affirmations (id, text, image_id) VALUES (?, ?, ?)",
+                    "INSERT INTO affirmations (id, text, image_id, used) VALUES (?, ?, ?, 0)",
                     (i, text, i)
                 )
-            logger.info("База данных заполнена аффирмациями")
+            logger.info(f"База данных заполнена {len(AFFIRMATIONS)} аффирмациями")
         
+        # Проверяем расписание
         cursor = await db.execute("SELECT COUNT(*) FROM schedule")
         sched_count = (await cursor.fetchone())[0]
+        
         if sched_count == 0:
             await db.execute("INSERT INTO schedule (post_time) VALUES ('08:00')")
         
         await db.commit()
 
+
 async def get_next_affirmation() -> dict:
-    today = datetime.now(tz).date().isoformat()
-    
+    """
+    Получить следующую случайную неиспользованную аффирмацию.
+    Когда все 500 использованы, сбрасывает флаги и начинает новый круг.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "DELETE FROM used_affirmations WHERE used_date != ?",
-            (today,)
-        )
-        
+        # 1. Пытаемся взять случайную неиспользованную
         cursor = await db.execute("""
-            SELECT id, text, image_id FROM affirmations 
-            WHERE id NOT IN (SELECT aff_id FROM used_affirmations WHERE used_date = ?)
-            ORDER BY id
+            SELECT id, text, image_id
+            FROM affirmations
+            WHERE used = 0
+            ORDER BY RANDOM()
             LIMIT 1
-        """, (today,))
+        """)
+        row = await cursor.fetchone()
         
-        result = await cursor.fetchone()
-        
-        if result:
-            aff_id, text, img_id = result
-            await db.execute(
-                "INSERT INTO used_affirmations (aff_id, used_date) VALUES (?, ?)",
-                (aff_id, today)
-            )
+        # 2. Если не осталось ни одной (все 500 использованы) — обнуляем used и берём снова
+        if not row:
+            logger.info("Все 500 аффирмаций использованы! Начинаем новый круг.")
+            await db.execute("UPDATE affirmations SET used = 0")
             await db.commit()
-            return {"id": aff_id, "text": text, "image_id": img_id or 1}
+            
+            cursor = await db.execute("""
+                SELECT id, text, image_id
+                FROM affirmations
+                ORDER BY RANDOM()
+                LIMIT 1
+            """)
+            row = await cursor.fetchone()
         
-        cursor = await db.execute(
-            "SELECT id, text, image_id FROM affirmations ORDER BY RANDOM() LIMIT 1"
+        aff_id, text, img_id = row
+        
+        # 3. Помечаем выбранную как использованную
+        await db.execute(
+            "UPDATE affirmations SET used = 1 WHERE id = ?",
+            (aff_id,)
         )
-        aff_id, text, img_id = await cursor.fetchone()
+        await db.commit()
+        
+        logger.info(f"Выбрана аффирмация #{aff_id}")
         return {"id": aff_id, "text": text, "image_id": img_id or 1}
 
+
 async def get_affirmation_photo(aff_id: int) -> str:
+    """Получить путь к фото аффирмации или создать заглушку"""
     path = IMAGES_DIR / f"{aff_id}.png"
     if path.exists():
         return str(path)
     
-    #fallback_path = IMAGES_DIR / "1.png"
-    #if fallback_path.exists():
-        #return str(fallback_path)
-    
     fallback_noone_path = IMAGES_DIR / "noone.png"
-    # if fallback_noone_path.exists():
-        # return str(fallback_noone_path)
+    if fallback_noone_path.exists():
+        return str(fallback_noone_path)
     
-    img = Image.new('RGB', (300, 200), color=(0, 0, 0))
+    # Создаём fallback изображение
+    img = Image.new('RGB', (1080, 1080), color=(20, 20, 20))
     draw = ImageDraw.Draw(img)
     
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 160)
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
     except:
         font = ImageFont.load_default()
     
-    text = f"STERVAFIT | Affirmation"
+    text = "STERVAFIT"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    position = ((300 - text_width) // 2, (200 - text_height) // 2)
+    position = ((1080 - text_width) // 2, (1080 - text_height) // 2)
     
     draw.text(position, text, fill="white", font=font)
     img.save(fallback_noone_path)
+    
     return str(fallback_noone_path)
 
+
 async def send_affirmation():
+    """Отправка аффирмации в канал"""
     try:
         aff = await get_next_affirmation()
         photo_path = await get_affirmation_photo(aff["image_id"])
         caption = f"🌚 {aff['text']}\n\n\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
+        
         await bot.send_photo(
             CHANNEL_ID,
             photo=FSInputFile(photo_path),
             caption=caption
         )
-        logger.info(f"Отправлена аффирмация #{aff['id']}")
+        
+        logger.info(f"✅ Отправлена аффирмация #{aff['id']}: {aff['text'][:30]}...")
     except Exception as e:
-        logger.error(f"Ошибка отправки аффирмации: {e}")
+        logger.error(f"❌ Ошибка отправки аффирмации: {e}")
+
 
 async def load_schedule():
+    """Загрузка расписания из БД в планировщик"""
     scheduler.remove_all_jobs()
     
     async with aiosqlite.connect(DB_PATH) as db:
@@ -708,11 +726,13 @@ async def load_schedule():
                 id=f"post_{time_str}",
                 replace_existing=True
             )
-            logger.info(f"Добавлена задача на {time_str}")
+            logger.info(f"✅ Добавлена задача на {time_str}")
         except Exception as e:
-            logger.error(f"Ошибка добавления задачи {time_str}: {e}")
+            logger.error(f"❌ Ошибка добавления задачи {time_str}: {e}")
+
 
 def get_main_keyboard():
+    """Главная клавиатура админ-панели"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📊 Статус", callback_data="status"),
@@ -728,29 +748,37 @@ def get_main_keyboard():
         ]
     ])
 
+
 @dp.message(CommandStart())
 async def start_handler(msg: Message):
+    """Обработчик команды /start"""
     if msg.from_user.id != ADMIN_ID:
         await msg.answer("❌ Доступ только для админа.")
         return
     
     text = (
         "👋 *Админ-панель бота аффирмаций*\n\n"
-        "Бот автоматически отправляет уникальные аффирмации в канал. "
+        "Бот автоматически отправляет уникальные аффирмации в канал.\n"
         "База данных: *500 аффирмаций*\n\n"
+        "🔥 *Новая логика*: каждая аффирмация будет показана один раз, "
+        "пока не пройдёт весь цикл из 500 дней!\n\n"
         "Используй кнопки для управления:"
     )
+    
     await msg.answer(text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
+
 
 @dp.callback_query(F.data == "status")
 async def status_cb(cb: CallbackQuery):
+    """Показ статуса бота"""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("SELECT COUNT(*) FROM affirmations")
         total = (await cursor.fetchone())[0]
         
-        cursor = await db.execute("SELECT COUNT(*) FROM used_affirmations WHERE used_date = ?",
-                                 (datetime.now(tz).date().isoformat(),))
-        used_today = (await cursor.fetchone())[0]
+        cursor = await db.execute("SELECT COUNT(*) FROM affirmations WHERE used = 1")
+        used_total = (await cursor.fetchone())[0]
+        
+        remaining = total - used_total
         
         cursor = await db.execute("SELECT post_time FROM schedule ORDER BY post_time")
         times = [row[0] for row in await cursor.fetchall()]
@@ -761,7 +789,8 @@ async def status_cb(cb: CallbackQuery):
     text = (
         f"📊 *Статус бота*\n\n"
         f"📚 Всего аффирмаций: *{total}*\n"
-        f"✅ Использовано сегодня: *{used_today}*\n"
+        f"✅ Использовано: *{used_total}*\n"
+        f"🔥 Осталось до нового круга: *{remaining}*\n\n"
         f"⏰ Время постинга: *{', '.join(times) or 'Не настроено'}*\n"
         f"🔄 Активных задач: *{active_jobs}*\n"
         f"🌍 Часовой пояс: *{TZ_NAME}*"
@@ -770,13 +799,17 @@ async def status_cb(cb: CallbackQuery):
     await cb.message.edit_text(text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
     await cb.answer()
 
+
 @dp.callback_query(F.data == "reload")
 async def reload_cb(cb: CallbackQuery):
+    """Перезагрузка расписания"""
     await load_schedule()
     await cb.answer("✅ Расписание перезагружено!", show_alert=True)
 
+
 @dp.callback_query(F.data == "change_time")
 async def change_time_cb(cb: CallbackQuery, state: FSMContext):
+    """Изменение времени постинга"""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("SELECT post_time FROM schedule ORDER BY post_time")
         times = [row[0] for row in await cursor.fetchall()]
@@ -787,12 +820,15 @@ async def change_time_cb(cb: CallbackQuery, state: FSMContext):
         f"Введи новое время в формате *HH:MM*\n"
         f"Например: 08:00 или 14:30"
     )
+    
     await cb.message.edit_text(text, parse_mode="Markdown")
     await state.set_state(AdminStates.waiting_time_change)
     await cb.answer()
 
+
 @dp.message(StateFilter(AdminStates.waiting_time_change), F.text)
 async def process_time_change(msg: Message, state: FSMContext):
+    """Обработка изменения времени"""
     if msg.from_user.id != ADMIN_ID:
         return
     
@@ -811,8 +847,10 @@ async def process_time_change(msg: Message, state: FSMContext):
     
     await state.clear()
 
+
 @dp.callback_query(F.data == "add_time")
 async def add_time_cb(cb: CallbackQuery, state: FSMContext):
+    """Добавление времени постинга"""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("SELECT post_time FROM schedule ORDER BY post_time")
         times = [row[0] for row in await cursor.fetchall()]
@@ -822,12 +860,15 @@ async def add_time_cb(cb: CallbackQuery, state: FSMContext):
         f"Текущие времена: *{', '.join(times)}*\n\n"
         f"Введи дополнительное время в формате *HH:MM*"
     )
+    
     await cb.message.edit_text(text, parse_mode="Markdown")
     await state.set_state(AdminStates.waiting_time_add)
     await cb.answer()
 
+
 @dp.message(StateFilter(AdminStates.waiting_time_add), F.text)
 async def process_time_add(msg: Message, state: FSMContext):
+    """Обработка добавления времени"""
     if msg.from_user.id != ADMIN_ID:
         return
     
@@ -847,8 +888,10 @@ async def process_time_add(msg: Message, state: FSMContext):
     
     await state.clear()
 
+
 @dp.callback_query(F.data == "del_time")
 async def del_time_cb(cb: CallbackQuery, state: FSMContext):
+    """Удаление времени постинга"""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute("SELECT post_time FROM schedule ORDER BY post_time")
         times = [row[0] for row in await cursor.fetchall()]
@@ -862,12 +905,15 @@ async def del_time_cb(cb: CallbackQuery, state: FSMContext):
         f"Текущие времена: *{', '.join(times)}*\n\n"
         f"Введи время для удаления (например: 08:00)"
     )
+    
     await cb.message.edit_text(text, parse_mode="Markdown")
     await state.set_state(AdminStates.waiting_time_delete)
     await cb.answer()
 
+
 @dp.message(StateFilter(AdminStates.waiting_time_delete), F.text)
 async def process_time_delete(msg: Message, state: FSMContext):
+    """Обработка удаления времени"""
     if msg.from_user.id != ADMIN_ID:
         return
     
@@ -883,18 +929,23 @@ async def process_time_delete(msg: Message, state: FSMContext):
     
     await state.clear()
 
+
 @dp.callback_query(F.data == "test_post")
 async def test_post_cb(cb: CallbackQuery):
+    """Тестовая отправка аффирмации"""
     await send_affirmation()
     await cb.answer("✅ Тестовая аффирмация отправлена!", show_alert=True)
 
+
 async def main():
-    logger.info("Запуск бота...")
+    """Главная функция запуска бота"""
+    logger.info("🚀 Запуск бота...")
     await init_db()
     await load_schedule()
     scheduler.start()
-    logger.info("Бот запущен!")
+    logger.info("✅ Бот запущен и готов к работе!")
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
