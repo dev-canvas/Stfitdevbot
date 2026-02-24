@@ -658,7 +658,7 @@ async def get_next_affirmation() -> dict:
         return {"id": aff_id, "text": text, "image_id": img_id or 1}
 
 
-async def get_affirmation_photo(aff_id: int) -> str:
+async def get_affirmation_photo(aff_id: int, aff_text: str) -> str:
     """Получить путь к фото аффирмации или создать заглушку"""
     path = IMAGES_DIR / f"{aff_id}.png"
     if path.exists():
@@ -678,7 +678,7 @@ async def get_affirmation_photo(aff_id: int) -> str:
     except:
         font = ImageFont.load_default()
     
-    text = "STERVAFIT | Affirmation | СТЕРВАФИТ"
+    text = aff_text #"STERVAFIT | Affirmation | СТЕРВАФИТ"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
@@ -694,7 +694,7 @@ async def send_affirmation():
     """Отправка аффирмации в канал"""
     try:
         aff = await get_next_affirmation()
-        photo_path = await get_affirmation_photo(aff["image_id"])
+        photo_path = await get_affirmation_photo(aff["image_id"], aff["text"])
         caption = f"🌚 {aff['text']}\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
         
         await bot.send_photo(
