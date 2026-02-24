@@ -674,7 +674,7 @@ async def get_affirmation_photo(aff_id: int, aff_text: str) -> str:
     draw = ImageDraw.Draw(img)
     
     try:
-        font = ImageFont.truetype("/app/ofont.ru_Makan_Hati.ttf", 80)
+        font = ImageFont.truetype("/app/ofont.ru_Makan_Hati.ttf", 160)
     except:
         font = ImageFont.load_default()
     
@@ -695,8 +695,8 @@ async def send_affirmation():
     try:
         aff = await get_next_affirmation()
         photo_path = await get_affirmation_photo(aff["image_id"], aff["text"])
-        caption = f"🌚 {aff['text']}\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
-        
+        caption = f"\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
+        #🌚 {aff['text']}
         await bot.send_photo(
             CHANNEL_ID,
             photo=FSInputFile(photo_path),
