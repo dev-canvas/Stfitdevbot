@@ -673,11 +673,11 @@ async def get_affirmation_photo(aff_id: int) -> str:
     draw = ImageDraw.Draw(img)
     
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
+        font = ImageFont.truetype("/app/ofont.ru_Makan_Hati.ttf", 80)
     except:
         font = ImageFont.load_default()
     
-    text = "STERVAFIT"
+    text = "STERVAFIT | Affirmation | СТЕРВАФИТ"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
@@ -694,7 +694,7 @@ async def send_affirmation():
     try:
         aff = await get_next_affirmation()
         photo_path = await get_affirmation_photo(aff["image_id"])
-        caption = f"🌚 {aff['text']}\n\n\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
+        caption = f"🌚 {aff['text']}\n\n\n\nСтавь 🔥 нах\n\n@stervafit"
         
         await bot.send_photo(
             CHANNEL_ID,
