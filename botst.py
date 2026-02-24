@@ -663,10 +663,11 @@ async def get_affirmation_photo(aff_id: int) -> str:
     path = IMAGES_DIR / f"{aff_id}.png"
     if path.exists():
         return str(path)
+        
     
-    fallback_noone_path = IMAGES_DIR / "noone.png"
-    if fallback_noone_path.exists():
-        return str(fallback_noone_path)
+    #fallback_noone_path = IMAGES_DIR / "noone.png"
+    #if fallback_noone_path.exists():
+        #return str(fallback_noone_path)
     
     # Создаём fallback изображение
     img = Image.new('RGB', (1280, 394), color=(20, 20, 20))
@@ -684,9 +685,9 @@ async def get_affirmation_photo(aff_id: int) -> str:
     position = ((1280 - text_width) // 2, (394 - text_height) // 2)
     
     draw.text(position, text, fill="white", font=font)
-    img.save(fallback_noone_path)
+    img.save(path)
     
-    return str(fallback_noone_path)
+    return str(path)
 
 
 async def send_affirmation():
