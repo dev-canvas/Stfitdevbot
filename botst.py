@@ -669,7 +669,7 @@ async def get_affirmation_photo(aff_id: int) -> str:
         return str(fallback_noone_path)
     
     # Создаём fallback изображение
-    img = Image.new('RGB', (1080, 1080), color=(20, 20, 20))
+    img = Image.new('RGB', (1280, 394), color=(20, 20, 20))
     draw = ImageDraw.Draw(img)
     
     try:
@@ -681,7 +681,7 @@ async def get_affirmation_photo(aff_id: int) -> str:
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    position = ((1080 - text_width) // 2, (1080 - text_height) // 2)
+    position = ((1280 - text_width) // 2, (394 - text_height) // 2)
     
     draw.text(position, text, fill="white", font=font)
     img.save(fallback_noone_path)
